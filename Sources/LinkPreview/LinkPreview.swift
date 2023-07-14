@@ -39,15 +39,17 @@ public struct LinkPreview: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: secondaryFontColor))
                     
-                    Text(url.host ?? "")
-                        .font(.caption)
-                        .foregroundColor(primaryFontColor)
+                    if type != .small {
+                        Text(url.host ?? "")
+                            .font(.caption)
+                            .foregroundColor(primaryFontColor)                        
+                    }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.horizontal, type == .small ? 0 : 12)
+                .padding(.vertical, type == .small ? 0 : 6)
                 .background(
                     Capsule()
-                        .foregroundColor(backgroundColor)
+                        .foregroundColor(type == .small ? .clear : backgroundColor)
                 )
                 .onAppear(perform: {
                     getMetaData(url: url)

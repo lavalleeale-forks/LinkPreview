@@ -50,46 +50,27 @@ struct LinkPreviewDesign: View {
     
     @ViewBuilder
     var smallType: some View {
-        HStack(spacing: 8){
-            VStack(alignment: .leading, spacing: 0){
-                if let title = metaData.title {
-                    Text(title)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .multilineTextAlignment(.leading)
-                        .foregroundColor(primaryFontColor)
-                        .lineLimit(titleLineLimit)
-                }
-                
-                if let url = metaData.url?.host {
-                    Text("\(url)")
-                        .foregroundColor(secondaryFontColor)
-                        .font(.footnote)
-                }
-            }
-            
+        ZStack {
             if let img = image {
-                Image(uiImage: img)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 32, height: 32, alignment: .center)
-                    .clipped()
-                    .cornerRadius(4)
+                GeometryReader { geo in
+                    Image(uiImage: img)
+                        .resizable()
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "safari")
+                                .resizable()
+                                .foregroundColor(.secondary)
+                                .frame(width: geo.size.width * 0.5, height: geo.size.height * 0.5)
+                                .padding([.bottom, .trailing], 3)
+                        }
+                }
             }
             else {
-                Image(systemName: "arrow.up.forward.app.fill")
+                Image(systemName: "safari")
                     .resizable()
                     .foregroundColor(secondaryFontColor)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 24, height: 24, alignment: .center)
+                    .padding(10)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            Rectangle()
-                .foregroundColor(backgroundColor)
-        )
         .cornerRadius(12)
     }
     
