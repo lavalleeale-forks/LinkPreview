@@ -1,5 +1,5 @@
-import SwiftUI
 import LinkPresentation
+import SwiftUI
 
 public struct LinkPreview: View {
     let url: URL?
@@ -7,7 +7,7 @@ public struct LinkPreview: View {
     @State private var isPresented: Bool = false
     @State private var metaData: LPLinkMetadata? = nil
     
-    var backgroundColor: Color = Color(.systemGray5)
+    var backgroundColor: Color = .init(.systemGray5)
     var primaryFontColor: Color = .primary
     var secondaryFontColor: Color = .secondary
     var titleLineLimit: Int = 3
@@ -27,22 +27,22 @@ public struct LinkPreview: View {
                 }, label: {
                     LinkPreviewDesign(metaData: metaData, type: type, backgroundColor: backgroundColor, primaryFontColor: primaryFontColor, secondaryFontColor: secondaryFontColor, titleLineLimit: titleLineLimit)
                 })
-                    .buttonStyle(LinkButton())
-                    .fullScreenCover(isPresented: $isPresented) {
-                        SfSafariView(url: url)
-                            .edgesIgnoringSafeArea(.all)
-                    }
-                    .animation(.spring(), value: metaData)
+                .buttonStyle(LinkButton())
+                .fullScreenCover(isPresented: $isPresented) {
+                    SfSafariView(url: url)
+                        .edgesIgnoringSafeArea(.all)
+                }
+                .animation(.spring(), value: metaData)
             }
             else {
-                HStack(spacing: 10){
+                HStack(spacing: 10) {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: secondaryFontColor))
                     
                     if type != .small {
                         Text(url.host ?? "")
                             .font(.caption)
-                            .foregroundColor(primaryFontColor)                        
+                            .foregroundColor(primaryFontColor)
                     }
                 }
                 .padding(.horizontal, type == .small ? 0 : 12)
@@ -52,7 +52,9 @@ public struct LinkPreview: View {
                         .foregroundColor(type == .small ? .clear : backgroundColor)
                 )
                 .onAppear(perform: {
-                    getMetaData(url: url)
+                    if metaData == nil {
+                        getMetaData(url: url)
+                    }
                 })
                 .onTapGesture {
                     if UIApplication.shared.canOpenURL(url) {
@@ -68,9 +70,14 @@ public struct LinkPreview: View {
     }
     
     func getMetaData(url: URL) {
+        if let metadata = MetadataStorage.metadata(for: url) {
+            self.metaData = metadata
+            return
+        }
         let provider = LPMetadataProvider()
-        provider.startFetchingMetadata(for: url) { meta, err in
-            guard let meta = meta else {return}
+        provider.startFetchingMetadata(for: url) { meta, _ in
+            guard let meta = meta else { return }
+            MetadataStorage.store(meta)
             withAnimation(.spring()) {
                 self.metaData = meta
             }
@@ -78,8 +85,36 @@ public struct LinkPreview: View {
     }
 }
 
-
-
+enum MetadataStorage {
+    private static let storage = UserDefaults.standard
+    
+    static func store(_ metadata: LPLinkMetadata) {
+        do {
+            let data = try NSKeyedArchiver.archivedData(withRootObject: metadata, requiringSecureCoding: true)
+            var metadatas = storage.dictionary(forKey: "Metadata") as? [String: Data] ?? [String: Data]()
+            while metadatas.count > 100 {
+                metadatas.removeValue(forKey: metadatas.randomElement()!.key)
+            }
+            metadatas[metadata.originalURL!.absoluteString] = data
+            storage.set(metadatas, forKey: "Metadata")
+        }
+        catch {
+            print("Failed storing metadata with error \(error as NSError)")
+        }
+    }
+    
+    static func metadata(for url: URL) -> LPLinkMetadata? {
+        guard let metadatas = storage.dictionary(forKey: "Metadata") as? [String: Data] else { return nil }
+        guard let data = metadatas[url.absoluteString] else { return nil }
+        do {
+            return try NSKeyedUnarchiver.unarchivedObject(ofClass: LPLinkMetadata.self, from: data)
+        }
+        catch {
+            print("Failed to unarchive metadata with error \(error as NSError)")
+            return nil
+        }
+    }
+}
 
 struct LinkButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
