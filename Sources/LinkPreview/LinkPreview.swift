@@ -53,7 +53,11 @@ public struct LinkPreview: View {
                 )
                 .onAppear(perform: {
                     if metaData == nil {
-                        getMetaData(url: url)
+                        MetadataStorage.getMetadata(url: url) { metaData in
+                            withAnimation(.spring()) {
+                                self.metaData = metaData
+                            }
+                        }
                     }
                 })
                 .onTapGesture {
@@ -68,31 +72,16 @@ public struct LinkPreview: View {
             }
         }
     }
-    
-    func getMetaData(url: URL) {
-        if let metadata = MetadataStorage.metadata(for: url) {
-            self.metaData = metadata
-            return
-        }
-        let provider = LPMetadataProvider()
-        provider.startFetchingMetadata(for: url) { meta, _ in
-            guard let meta = meta else { return }
-            MetadataStorage.store(meta)
-            withAnimation(.spring()) {
-                self.metaData = meta
-            }
-        }
-    }
 }
 
-enum MetadataStorage {
+public struct MetadataStorage {
     private static let storage = UserDefaults.standard
     
-    static func store(_ metadata: LPLinkMetadata) {
+    public static func store(_ metadata: LPLinkMetadata) {
         do {
             let data = try NSKeyedArchiver.archivedData(withRootObject: metadata, requiringSecureCoding: true)
             var metadatas = storage.dictionary(forKey: "Metadata") as? [String: Data] ?? [String: Data]()
-            while metadatas.count > 100 {
+            while metadatas.count > 200 {
                 metadatas.removeValue(forKey: metadatas.randomElement()!.key)
             }
             metadatas[metadata.originalURL!.absoluteString] = data
@@ -103,15 +92,32 @@ enum MetadataStorage {
         }
     }
     
-    static func metadata(for url: URL) -> LPLinkMetadata? {
-        guard let metadatas = storage.dictionary(forKey: "Metadata") as? [String: Data] else { return nil }
-        guard let data = metadatas[url.absoluteString] else { return nil }
+    public static func metadata(for url: URL) -> LPLinkMetadata? {
+        guard let metadatas = storage.dictionary(forKey: "Metadata") as? [String: Data] else {
+            return nil
+        }
+        guard let data = metadatas[url.absoluteString] else {
+            return nil
+        }
         do {
             return try NSKeyedUnarchiver.unarchivedObject(ofClass: LPLinkMetadata.self, from: data)
         }
         catch {
             print("Failed to unarchive metadata with error \(error as NSError)")
             return nil
+        }
+    }
+    
+    public static func getMetadata(url: URL, completion: @escaping (LPLinkMetadata?)->Void) {
+        if let metadata = MetadataStorage.metadata(for: url) {
+            completion(metadata)
+            return
+        }
+        let provider = LPMetadataProvider()
+        provider.startFetchingMetadata(for: url) { meta, _ in
+            guard let meta = meta else { return }
+            MetadataStorage.store(meta)
+                completion(meta)
         }
     }
 }
