@@ -84,8 +84,10 @@ public struct MetadataStorage {
             while metadatas.count > 200 {
                 metadatas.removeValue(forKey: metadatas.randomElement()!.key)
             }
-            metadatas[metadata.originalURL!.absoluteString] = data
-            storage.set(metadatas, forKey: "Metadata")
+            if let url = metadata.originalURL?.absoluteString {
+                metadatas[url] = data
+                storage.set(metadatas, forKey: "Metadata")
+            }
         }
         catch {
             print("Failed storing metadata with error \(error as NSError)")
