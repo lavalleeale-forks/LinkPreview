@@ -52,10 +52,14 @@ public struct LinkPreview: View {
                         .foregroundColor(type == .small ? .clear : backgroundColor)
                 )
                 .onAppear(perform: {
-                    if metaData == nil {
-                        MetadataStorage.getMetadata(url: url) { metaData in
-                            withAnimation(.spring()) {
-                                self.metaData = metaData
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        if metaData == nil {
+                            MetadataStorage.getMetadata(url: url) { metaData in
+                                DispatchQueue.main.async {
+                                    withAnimation(.spring()) {
+                                        self.metaData = metaData
+                                    }
+                                }
                             }
                         }
                     }
@@ -110,7 +114,7 @@ public struct MetadataStorage {
         }
     }
     
-    public static func getMetadata(url: URL, completion: @escaping (LPLinkMetadata?)->Void) {
+    public static func getMetadata(url: URL, completion: @escaping (LPLinkMetadata?) -> Void) {
         if let metadata = MetadataStorage.metadata(for: url) {
             completion(metadata)
             return
@@ -119,7 +123,7 @@ public struct MetadataStorage {
         provider.startFetchingMetadata(for: url) { meta, _ in
             guard let meta = meta else { return }
             MetadataStorage.store(meta)
-                completion(meta)
+            completion(meta)
         }
     }
 }
